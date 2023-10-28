@@ -1,4 +1,5 @@
 import asyncio
+from membership import ChannelMembership
 from asyncio import StreamReader, StreamWriter
 from typing import *
 from loguru import logger
@@ -6,7 +7,7 @@ from collections import namedtuple, deque
 
 Channel = namedtuple('Channel', ['channel', 'client_count', 'topic'])
 Command = namedtuple('Command', ['command', 'parameters'])
-Member = namedtuple('Member', ['prefix', 'nick'])
+Member = namedtuple('Member', ['membership', 'nick'])
 
 
 class IrcClient:
@@ -99,8 +100,12 @@ class IrcClient:
     # RPL_NAMREPLY
     async def on_353(self, response: str):
         if response.split(' ')[1] == '353':
-            self.members = response.rstrip().split(' ')[5:]
-            self.members[0] = self.members[0].lstrip(':')
+            self.members = []
+            names = response.rstrip().split(' ')[5:]
+            names[0] = names[0].lstrip(':')
+            for name in names:
+                membership, nick = ChannelMembership.parse_name(name)
+                self.members.append(Member(membership, nick))
 
     # RPL_ENDOFNAMES
     async def on_366(self, response: str):
