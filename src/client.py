@@ -16,9 +16,10 @@ class IrcClient:
         self.nickname: str = nickname
         self.encoding: str = encoding
 
-        self.buffer: list[str] = []
         self.reader: StreamReader = None
         self.writer: StreamWriter = None
+
+        self.channels: list[Channel] = []
 
     async def connect(self):
         self.reader, self.writer = await asyncio.open_connection(self.host,
@@ -28,27 +29,36 @@ class IrcClient:
 
     async def listen(self):
         while True:
-            data = await self.reader.read(1024)
-            # try:
-            response = data.decode(self.encoding)
-            await self.process_response(response)
-            # except UnicodeDecodeError as err:
-            #     print(data, end='')
-            print('Readed!')
-            await asyncio.sleep(0.1)
+            data = await self.reader.readuntil(separator=b'\r\n')
+            try:
+                response = data.decode(self.encoding)
+                await self.process_response(response)
+            except UnicodeDecodeError:
+                ...
+            await asyncio.sleep(0.01)
 
     async def process_response(self, response: str):
+        print(response, end='')
+        response = response.rstrip('\r\n')
         if 'PING' in response:
             await self.send_command(
                 Command("PONG", [":" + response.split(":")[1]]))
-        print(response, end='')
+            return
+        if response.split(' ')[1] == '322':
+            channel, client_count, *topic = response.split(' ')[3:]
+            topic = ' '.join(topic)[1:]
+            self.channels.append(Channel(channel, client_count, topic))
+            return
+        if response.split(' ')[1] == '323':
+            print(*self.channels, sep='\n')
+            return
 
     async def send_command(self, command: Command):
         text = f'{command.command} {" ".join(command.parameters)}\r\n'
         print(f'Sending {text}')
         self.writer.write(text.encode(self.encoding))
         await self.writer.drain()
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.01)
 
     async def authorize(self):
         # TODO: send_password()
@@ -63,5 +73,5 @@ class IrcClient:
 
 
 if __name__ == '__main__':
-    client = IrcClient("irc.ircnet.ru", 6667, 'pavlo', encoding='cp1251')
+    client = IrcClient("irc.ircnet.ru", 6688, 'pavlo', encoding='utf-8')
     asyncio.run(client.connect())
