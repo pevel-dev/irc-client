@@ -20,6 +20,7 @@ class IrcClient:
         self.writer: StreamWriter = None
 
         self.channels: list[Channel] = []
+        self.commands: deque[Command] = deque()
 
     async def connect(self):
         self.reader, self.writer = await asyncio.open_connection(self.host,
@@ -47,21 +48,23 @@ class IrcClient:
 
     async def produce(self):
         while True:
-            #TODO написать очередь сообщений, которые отправляет сервак
+            if self.commands:
+                command = self.commands.popleft()
+                await self.send_command(command)
             await asyncio.sleep(0.01)
 
     async def process_response(self, response: str):
         print(response, end='')
         response = response.rstrip('\r\n')
         if 'PING' in response:
-            await self.send_command(
+            self.commands.append(
                 Command("PONG", [":" + response.split(":")[1]]))
-            return
-        if response.split(' ')[1] == '322':
+        elif response.split(' ')[1] == '322':
             channel, client_count, *topic = response.split(' ')[3:]
             topic = ' '.join(topic)[1:]
             self.channels.append(Channel(channel, client_count, topic))
             return
+        await asyncio.sleep(0.01)
         # if response.split(' ')[1] == '323':
         #     print(*self.channels, sep='\n')
         #     return
@@ -75,14 +78,16 @@ class IrcClient:
 
     async def authorize(self):
         # TODO: send_password()
-        await self.send_command(Command("NICK", [self.nickname]))
-        await self.send_command(
+        self.commands.append(Command("NICK", [self.nickname]))
+        self.commands.append(
             Command("USER", [self.nickname, "8", "*", ":Pavel Egorov"]))
         # await self.send_command(Command("MODE", [self.nickname, "+i"]))
-        await self.send_command(Command("LIST", []))
+        self.commands.append(Command("LIST", []))
+        await asyncio.sleep(0.01)
 
     async def join_channel(self, channel: Channel):
-        await self.send_command(Command("JOIN", [channel.channel]))
+        self.commands.append(Command("JOIN", [channel.channel]))
+        await asyncio.sleep(0.01)
 
 
 if __name__ == '__main__':
