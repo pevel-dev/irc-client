@@ -25,9 +25,17 @@ class IrcClient:
         self.reader, self.writer = await asyncio.open_connection(self.host,
                                                                  self.port)
         await self.authorize()
-        await self.listen()
+        await self.handle()
 
-    async def listen(self):
+    async def handle(self):
+        consume_task = asyncio.create_task(self.consume())
+        produce_task = asyncio.create_task(self.produce())
+        done, pending = await asyncio.wait([consume_task, produce_task],
+                                           return_when=asyncio.FIRST_COMPLETED)
+        for task in pending:
+            task.cancel()
+
+    async def consume(self):
         while True:
             data = await self.reader.readuntil(separator=b'\r\n')
             try:
@@ -35,6 +43,11 @@ class IrcClient:
                 await self.process_response(response)
             except UnicodeDecodeError:
                 ...
+            await asyncio.sleep(0.01)
+
+    async def produce(self):
+        while True:
+            #TODO написать очередь сообщений, которые отправляет сервак
             await asyncio.sleep(0.01)
 
     async def process_response(self, response: str):
@@ -49,14 +62,14 @@ class IrcClient:
             topic = ' '.join(topic)[1:]
             self.channels.append(Channel(channel, client_count, topic))
             return
-        if response.split(' ')[1] == '323':
-            print(*self.channels, sep='\n')
-            return
+        # if response.split(' ')[1] == '323':
+        #     print(*self.channels, sep='\n')
+        #     return
 
     async def send_command(self, command: Command):
-        text = f'{command.command} {" ".join(command.parameters)}\r\n'
-        print(f'Sending {text}')
-        self.writer.write(text.encode(self.encoding))
+        message = f'{command.command} {" ".join(command.parameters)}\r\n'
+        print(f'Sending {message}')
+        self.writer.write(message.encode(self.encoding))
         await self.writer.drain()
         await asyncio.sleep(0.01)
 
