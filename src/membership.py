@@ -1,5 +1,5 @@
 from typing import *
-from enum import Enum, IntEnum
+from enum import IntEnum
 
 MEMBERSHIP_PREFIXES = [('~', '+q'),  # founder
                        ('&', '+a'),  # protected
@@ -17,7 +17,7 @@ class ChannelMembership(IntEnum):
     DEFAULT = 5
 
     @staticmethod
-    def parse_name(name: str) -> Tuple[Enum, str]:
+    def parse_name(name: str) -> Tuple[IntEnum, str]:
         membership = None
         for i in range(len(MEMBERSHIP_PREFIXES)):
             for prefix in MEMBERSHIP_PREFIXES[i]:
