@@ -1,0 +1,19 @@
+[tool.black]
+line-length = 120
+skip-string-normalization = true
+
+[flake8]
+#ignore = "E203, E266, E501, E999, W503, F403"
+max-line-length = 120
+max-complexity = 9
+select = "B, C, E, F, W, T4, B9"
+exclude = "venv"
+
+[tool.isort]
+combine_as_imports = true
+default_section = "THIRDPARTY"
+include_trailing_comma = true
+line_length = 120
+multi_line_output = 3
+skip = "/venv"
+skip_glob = "venv"
