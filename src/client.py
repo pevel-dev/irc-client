@@ -218,18 +218,3 @@ class IrcClient:
                                      [self.current_channel,
                                       ":" + message])
                              )
-
-
-async def main():
-    client = IrcClient("irc.ircnet.ru", 6688, 'pavlo', 'utf-8',
-                       None, None, None)
-    await client.connect()
-    # await client.join_channel(Channel('#Usue', None, None))
-    # await client.update_members(Channel('#Usue', None, None))
-    # await client.leave_channel()
-    # await client.close()
-    await client.handle()
-
-
-if __name__ == '__main__':
-    asyncio.run(main())

@@ -6,7 +6,6 @@ from qasync import QEventLoop
 
 from src.window import MainWindow
 
-
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
 
@@ -14,7 +13,4 @@ if __name__ == "__main__":
     asyncio.set_event_loop(loop)
     window = MainWindow()
     window.show()
-
-    # tasks
-
     loop.run_forever()
