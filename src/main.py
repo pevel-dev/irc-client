@@ -15,6 +15,4 @@ if __name__ == "__main__":
     window = MainWindow()
     window.show()
 
-    # tasks
-
     loop.run_forever()

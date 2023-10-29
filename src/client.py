@@ -2,7 +2,6 @@ import asyncio
 from membership import ChannelMembership
 from asyncio import StreamReader, StreamWriter
 from typing import *
-from loguru import logger
 from collections import namedtuple, deque
 
 Channel = namedtuple('Channel', ['channel', 'client_count', 'topic'])
@@ -59,8 +58,8 @@ class IrcClient:
                 try:
                     response = data.decode(self.encoding)
                     await self.process_response(response)
-                except UnicodeDecodeError:
-                    ...
+                except UnicodeDecodeError as ex:
+                    print('ОШИБОЧКА', ex)
             except asyncio.exceptions.IncompleteReadError:
                 break
             await asyncio.sleep(0.01)
@@ -142,18 +141,3 @@ class IrcClient:
 
     def send_message(self, message):
         self.commands.append(Command("PRIVMSG", [self.current_channel, ":" + message]))
-
-
-async def main():
-    client = IrcClient("irc.ircnet.ru", 6688, 'pavlo', 'utf-8',
-                       None, None, None)
-    await client.connect()
-    # await client.join_channel(Channel('#Usue', None, None))
-    # await client.update_members(Channel('#Usue', None, None))
-    # await client.leave_channel()
-    # await client.close()
-    await client.handle()
-
-
-if __name__ == '__main__':
-    asyncio.run(main())

@@ -3,9 +3,7 @@ import asyncio
 from PyQt6.QtWidgets import QMainWindow, QTabWidget, QFormLayout, QLabel, QLineEdit, QWidget, QPushButton, QHBoxLayout, \
     QVBoxLayout, QTextEdit, QTreeWidget, QTreeWidgetItem
 from qasync import asyncSlot
-from loguru import logger
 from client import IrcClient
-logger.add('log.log')
 
 
 class MainWindow(QMainWindow):
@@ -122,17 +120,14 @@ class MainWindow(QMainWindow):
         )
         host, port = addr[0], addr[1]
 
-        logger.info(f'Подключаемся к {host}:{port} | Nickname: {nickname} Password: {passwd}')
         self.irc_client = IrcClient(host, port, nickname, encoding, self.change_channels_list, self.change_chat_members, self.change_chat_view)
         await self.irc_client.connect()
         loop = asyncio.get_event_loop()
         loop.create_task(self.irc_client.handle())
-        # Вызов подключения
 
     @asyncSlot()
     async def text_enter_pressed(self):
         text = self.send_text_line_edit.text()
-        logger.info(f'Отправляем текст {text}')
         self.irc_client.send_message(text)
         self.send_text_line_edit.clear()
 
@@ -141,9 +136,9 @@ class MainWindow(QMainWindow):
         await self.irc_client.leave_channel()
         for index, item in enumerate(self.channel_items):
             if item.isSelected():
-                logger.info(f'Connect to channel {self.channel_data[index]}')
                 await self.irc_client.join_channel(self.channel_data[index])
         self.leave_channel_button.setDisabled(False)
+
     @asyncSlot()
     async def leave_channel(self):
         await self.irc_client.leave_channel()
@@ -151,7 +146,6 @@ class MainWindow(QMainWindow):
         self.users_view.clear()
 
     async def change_channels_list(self, list_channels) -> None:
-        logger.info(f'New list channels {list_channels}')
         self.channel_view.clear()
         self.channel_data.clear()
         self.channel_items.clear()
@@ -175,4 +169,3 @@ class MainWindow(QMainWindow):
         for membership, nick in members:
             current_tree_item = QTreeWidgetItem(self.users_view)
             current_tree_item.setText(0, nick)
-        logger.info(f'New chat members: {members}')
