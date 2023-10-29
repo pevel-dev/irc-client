@@ -18,7 +18,8 @@ class IrcClient:
                  host: str, port: str | int, nickname: str, encoding: str,
                  on_update_channels: Callable,
                  on_update_members: Callable,
-                 on_receiving_message: Callable):
+                 on_receiving_message: Callable,
+                 ):
 
         self.host: str = host
         self.port: str | int = port
@@ -44,8 +45,8 @@ class IrcClient:
     async def connect(self):
         self.reader, self.writer = await asyncio.open_connection(self.host,
                                                                  self.port)
-        await self._authorize()
-        await self.update_channels()
+        self._authorize()
+        self.update_channels()
 
     async def handle(self):
         consume_task = asyncio.create_task(self._consume())
@@ -97,7 +98,11 @@ class IrcClient:
     # RPL_LISTEND
     async def _on_323(self, response: str):
         if response.split(' ')[1] == '323':
-            await self.on_update_channels(self.channels)
+            await self.on_update_channels(sorted(
+                self.channels,
+                key=lambda c: int(c.client_count),
+                reverse=True
+            ))
 
     # RPL_NAMREPLY
     async def _on_353(self, response: str):
@@ -112,7 +117,7 @@ class IrcClient:
     # RPL_ENDOFNAMES
     async def _on_366(self, response: str):
         if response.split(' ')[1] == '366':
-            await self.on_update_members(self.members)
+            await self.on_update_members(sorted(self.members))
 
     async def _send_command(self, command: Command):
         message = f'{command.command} {" ".join(command.parameters)}\r\n'
@@ -120,31 +125,35 @@ class IrcClient:
         self.writer.write(message.encode(self.encoding))
         await self.writer.drain()
 
-    async def _authorize(self):
+    def _authorize(self):
         # TODO: send_password()
         self.commands.append(Command("NICK", [self.nickname]))
         self.commands.append(
-            Command("USER", [self.nickname, "8", "*", ":Pavel Egorov"]))
+            Command("USER", [self.nickname, "8", "*", ":Pavel Egorov"])
+        )
 
-    async def update_channels(self):
+    def update_channels(self):
         self.commands.append(Command("LIST", []))
 
-    async def update_members(self, channel: Channel):
-        self.commands.append(Command("NAMES", [channel.channel]))
+    def update_members(self):
+        self.commands.append(Command("NAMES", [self.current_channel]))
 
-    async def join_channel(self, channel: Channel):
+    def join_channel(self, channel: Channel):
         self.commands.append(Command("JOIN", [channel.channel]))
         self.current_channel = channel.channel
 
-    async def leave_channel(self):
+    def leave_channel(self):
         self.commands.append(Command("JOIN", ["0"]))
         self.current_channel = None
 
-    async def close(self):
+    def close(self):
         self.commands.append(Command("QUIT", ["Bye!"]))
 
     def send_message(self, message):
-        words = deque(message.split(' '))
+        self._send_text_by_blocks(message)
+
+    def _send_text_by_blocks(self, text):
+        words = deque(text.split(' '))
         whitespace_size = 1
         while words:
             block = []
@@ -157,11 +166,12 @@ class IrcClient:
                     block_size += len(word.encode()) + whitespace_size
                 self.commands.append(Command("PRIVMSG",
                                              [self.current_channel,
-                                              ":" + ' '.join(block)]))
+                                              ":" + ' '.join(block)])
+                                     )
             else:
-                self._split_into_blocks(words.popleft())
+                self._send_word_by_blocks(words.popleft())
 
-    def _split_into_blocks(self, word):
+    def _send_word_by_blocks(self, word):
         chars = deque(word)
         while chars:
             block = []
@@ -173,7 +183,8 @@ class IrcClient:
                 block_size += len(char.encode())
             self.commands.append(Command("PRIVMSG",
                                          [self.current_channel,
-                                          ":" + ''.join(block)]))
+                                          ":" + ''.join(block)])
+                                 )
 
 
 async def main():
