@@ -1,11 +1,13 @@
-from typing import *
+import typing
 from enum import Enum, IntEnum
 
-MEMBERSHIP_PREFIXES = [('~', '+q'),  # founder
-                       ('&', '+a'),  # protected
-                       ('@', '+o'),  # operator
-                       ('%', '+h'),  # halfop
-                       ('+', '+v')]  # voice
+MEMBERSHIP_PREFIXES = [
+    ('~', '+q'),  # founder
+    ('&', '+a'),  # protected
+    ('@', '+o'),  # operator
+    ('%', '+h'),  # halfop
+    ('+', '+v'),
+]  # voice
 
 
 class ChannelMembership(IntEnum):
@@ -17,7 +19,7 @@ class ChannelMembership(IntEnum):
     DEFAULT = 5
 
     @staticmethod
-    def parse_name(name: str) -> Tuple[Enum, str]:
+    def parse_name(name: str) -> typing.Tuple[Enum, str]:
         membership = None
         for i in range(len(MEMBERSHIP_PREFIXES)):
             for prefix in MEMBERSHIP_PREFIXES[i]:

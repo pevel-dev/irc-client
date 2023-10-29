@@ -1,8 +1,9 @@
 import asyncio
-from membership import ChannelMembership
+import typing
 from asyncio import StreamReader, StreamWriter
-from typing import *
-from collections import namedtuple, deque
+from collections import deque, namedtuple
+
+from membership import ChannelMembership
 
 Channel = namedtuple('Channel', ['channel', 'client_count', 'topic'])
 Command = namedtuple('Command', ['command', 'parameters'])
@@ -10,12 +11,16 @@ Member = namedtuple('Member', ['membership', 'nick'])
 
 
 class IrcClient:
-    def __init__(self,
-                 host: str, port: str | int, nickname: str, encoding: str,
-                 on_update_channels: Callable,
-                 on_update_members: Callable,
-                 on_receiving_message: Callable):
-
+    def __init__(
+        self,
+        host: str,
+        port: str | int,
+        nickname: str,
+        encoding: str,
+        on_update_channels: typing.Callable,
+        on_update_members: typing.Callable,
+        on_receiving_message: typing.Callable,
+    ):
         self.host: str = host
         self.port: str | int = port
         self.nickname: str = nickname
@@ -29,25 +34,21 @@ class IrcClient:
         self.members: list[Member] = None
         self.commands: deque[Command] = deque()
 
-        self.checks = [self.on_ping,
-                       self.on_322, self.on_323,
-                       self.on_353, self.on_366]
+        self.checks = [self.on_ping, self.on_322, self.on_323, self.on_353, self.on_366]
 
         self.on_receiving_message = on_receiving_message
         self.on_update_members = on_update_members
         self.on_update_channels = on_update_channels
 
     async def connect(self):
-        self.reader, self.writer = await asyncio.open_connection(self.host,
-                                                                 self.port)
+        self.reader, self.writer = await asyncio.open_connection(self.host, self.port)
         await self.authorize()
         await self.update_channels()
 
     async def handle(self):
         consume_task = asyncio.create_task(self.consume())
         produce_task = asyncio.create_task(self.produce())
-        done, pending = await asyncio.wait([consume_task, produce_task],
-                                           return_when=asyncio.FIRST_COMPLETED)
+        done, pending = await asyncio.wait([consume_task, produce_task], return_when=asyncio.FIRST_COMPLETED)
         for task in pending:
             task.cancel()
 
@@ -80,8 +81,7 @@ class IrcClient:
 
     async def on_ping(self, response: str):
         if 'PING' in response:
-            self.commands.append(
-                Command("PONG", [":" + response.split(":")[1]]))
+            self.commands.append(Command("PONG", [":" + response.split(":")[1]]))
 
     # RPL_LIST
     async def on_322(self, response: str):
@@ -119,8 +119,7 @@ class IrcClient:
     async def authorize(self):
         # TODO: send_password()
         self.commands.append(Command("NICK", [self.nickname]))
-        self.commands.append(
-            Command("USER", [self.nickname, "8", "*", ":Pavel Egorov"]))
+        self.commands.append(Command("USER", [self.nickname, "8", "*", ":Pavel Egorov"]))
 
     async def update_channels(self):
         self.commands.append(Command("LIST", []))

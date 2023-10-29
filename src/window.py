@@ -1,13 +1,25 @@
 import asyncio
 
-from PyQt6.QtWidgets import QMainWindow, QTabWidget, QFormLayout, QLabel, QLineEdit, QWidget, QPushButton, QHBoxLayout, \
-    QVBoxLayout, QTextEdit, QTreeWidget, QTreeWidgetItem
+from PyQt6.QtWidgets import (
+    QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QPushButton,
+    QTabWidget,
+    QTextEdit,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 from qasync import asyncSlot
+
 from client import IrcClient
 
 
 class MainWindow(QMainWindow):
-
     def __init__(self):
         super().__init__()
 
@@ -79,7 +91,6 @@ class MainWindow(QMainWindow):
         self.leave_channel_button.clicked.connect(self.leave_channel)
         self.leave_channel_button.setDisabled(True)
         layout_left_channels.addWidget(self.leave_channel_button)
-        
         self.users_view = QTreeWidget()
         self.users_view.headerItem().setText(0, "Ник")
         layout_left_users.addWidget(self.users_view)
@@ -112,15 +123,16 @@ class MainWindow(QMainWindow):
 
     @asyncSlot()
     async def connect_button_clicked(self):
-        addr, nickname, passwd, encoding = (
+        addr, nickname, encoding = (
             self.server_line_edit.text().split(':'),
             self.nickname_line_edit.text(),
-            self.password_line_edit.text(),
-            self.encoding_line_edit.text()
+            self.encoding_line_edit.text(),
         )
         host, port = addr[0], addr[1]
 
-        self.irc_client = IrcClient(host, port, nickname, encoding, self.change_channels_list, self.change_chat_members, self.change_chat_view)
+        self.irc_client = IrcClient(
+            host, port, nickname, encoding, self.change_channels_list, self.change_chat_members, self.change_chat_view
+        )
         await self.irc_client.connect()
         loop = asyncio.get_event_loop()
         loop.create_task(self.irc_client.handle())

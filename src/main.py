@@ -6,7 +6,6 @@ from qasync import QEventLoop
 
 from src.window import MainWindow
 
-
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
 
