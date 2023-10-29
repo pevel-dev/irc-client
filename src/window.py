@@ -138,14 +138,16 @@ class MainWindow(QMainWindow):
 
     @asyncSlot()
     async def connect_channel(self):
+        await self.irc_client.leave_channel()
         for index, item in enumerate(self.channel_items):
             if item.isSelected():
                 logger.info(f'Connect to channel {self.channel_data[index]}')
                 await self.irc_client.join_channel(self.channel_data[index])
-
+        self.leave_channel_button.setDisabled(False)
     @asyncSlot()
     async def leave_channel(self):
         await self.irc_client.leave_channel()
+        self.leave_channel_button.setDisabled(True)
         self.users_view.clear()
 
     async def change_channels_list(self, list_channels) -> None:
