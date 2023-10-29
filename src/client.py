@@ -60,7 +60,7 @@ class IrcClient:
                     response = data.decode(self.encoding)
                     await self.process_response(response)
                 except UnicodeDecodeError as ex:
-                    print('ОШИБОЧКА', ex)
+                    pass
             except asyncio.exceptions.IncompleteReadError:
                 break
             await asyncio.sleep(0.01)
@@ -73,7 +73,6 @@ class IrcClient:
             await asyncio.sleep(0.01)
 
     async def process_response(self, response: str):
-        print(response, end='')
         response = response.rstrip('\r\n')
         for check in self.checks:
             await check(response)
@@ -112,7 +111,6 @@ class IrcClient:
 
     async def _send_command(self, command: Command):
         message = f'{command.command} {" ".join(command.parameters)}\r\n'
-        print(f'Sending {message}')
         self.writer.write(message.encode(self.encoding))
         await self.writer.drain()
 
