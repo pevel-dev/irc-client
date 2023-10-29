@@ -1,5 +1,5 @@
 from typing import *
-from enum import Enum
+from enum import Enum, IntEnum
 
 MEMBERSHIP_PREFIXES = [('~', '+q'),  # founder
                        ('&', '+a'),  # protected
@@ -8,7 +8,7 @@ MEMBERSHIP_PREFIXES = [('~', '+q'),  # founder
                        ('+', '+v')]  # voice
 
 
-class ChannelMembership(Enum):
+class ChannelMembership(IntEnum):
     FOUNDER = 0
     PROTECTED = 1
     OPERATOR = 2

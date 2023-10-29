@@ -1,7 +1,10 @@
+import asyncio
+
 from PyQt6.QtWidgets import QMainWindow, QTabWidget, QFormLayout, QLabel, QLineEdit, QWidget, QPushButton, QHBoxLayout, \
-    QVBoxLayout, QListView, QTextEdit, QTreeWidget, QTreeWidgetItem
+    QVBoxLayout, QTextEdit, QTreeWidget, QTreeWidgetItem
 from qasync import asyncSlot
 from loguru import logger
+from client import IrcClient
 logger.add('log.log')
 
 
@@ -10,13 +13,19 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.connect_channel_button = None
+        self.encoding_line_edit = None
+        self.irc_client: IrcClient = None
         self.channel_data = []
         self.channel_items = []
+        self.chat_text = []
+        self.current_channel = None
 
+        self.users_view = None
+        self.leave_channel_button = None
+        self.connect_channel_button = None
         self.password_line_edit = None
         self.send_text_line_edit = None
-        self.chat_view = None
+        self.chat_view: QTextEdit = None
         self.channel_view: QTreeWidget = None
         self.server_line_edit = None
         self.nickname_line_edit = None
@@ -31,11 +40,15 @@ class MainWindow(QMainWindow):
     def tab_settings(self, tabs):
         layout = QFormLayout()
         layout.addWidget(QLabel('ip:port Сервера:'))
-        self.server_line_edit = QLineEdit()
+        self.server_line_edit = QLineEdit('irc.ircnet.ru:6688')
         layout.addWidget(self.server_line_edit)
 
+        layout.addWidget(QLabel('Кодировка'))
+        self.encoding_line_edit = QLineEdit('utf-8')
+        layout.addWidget(self.encoding_line_edit)
+
         layout.addWidget(QLabel('Nickname:'))
-        self.nickname_line_edit = QLineEdit()
+        self.nickname_line_edit = QLineEdit('pevel')
         layout.addWidget(self.nickname_line_edit)
 
         layout.addWidget(QLabel('Password:'))
@@ -48,20 +61,41 @@ class MainWindow(QMainWindow):
 
         widget = QWidget()
         widget.setLayout(layout)
-        tabs.addTab(widget, "Подключение")
+        tabs.addTab(widget, 'Подключение')
 
     def tab_irc(self, tabs):
         layout = QHBoxLayout()
-        layout_left = QVBoxLayout()
+        layout_left_channels = QVBoxLayout()
+        layout_left_users = QVBoxLayout()
         layout_right = QVBoxLayout()
 
         self.channel_view = QTreeWidget()
-        self.channel_view.headerItem().setText(0, "Название:")
-        self.channel_view.headerItem().setText(1, "Users:")
-        layout_left.addWidget(self.channel_view)
+        self.channel_view.headerItem().setText(0, "Название")
+        self.channel_view.headerItem().setText(1, "Users")
+        self.channel_view.headerItem().setText(2, 'Topic')
+        layout_left_channels.addWidget(self.channel_view)
         self.connect_channel_button = QPushButton('Подключиться к каналу')
-        layout_left.addWidget(self.connect_channel_button)
+        layout_left_channels.addWidget(self.connect_channel_button)
         self.connect_channel_button.clicked.connect(self.connect_channel)
+        self.leave_channel_button = QPushButton('Покинуть канал')
+        self.leave_channel_button.clicked.connect(self.leave_channel)
+        self.leave_channel_button.setDisabled(True)
+        layout_left_channels.addWidget(self.leave_channel_button)
+        
+        self.users_view = QTreeWidget()
+        self.users_view.headerItem().setText(0, "Ник")
+        layout_left_users.addWidget(self.users_view)
+
+        channel_user_tab = QTabWidget()
+        channel_user_tab.setTabPosition(QTabWidget.TabPosition.West)
+
+        layout_left_channels_widget = QWidget()
+        layout_left_channels_widget.setLayout(layout_left_channels)
+        channel_user_tab.addTab(layout_left_channels_widget, 'Каналы')
+
+        layout_left_users_widget = QWidget()
+        layout_left_users_widget.setLayout(layout_left_users)
+        channel_user_tab.addTab(layout_left_users_widget, 'Пользователи')
 
         self.chat_view = QTextEdit()
         self.chat_view.setReadOnly(True)
@@ -71,7 +105,7 @@ class MainWindow(QMainWindow):
         layout_right.addWidget(self.send_text_line_edit)
         self.send_text_line_edit.returnPressed.connect(self.text_enter_pressed)
 
-        layout.addLayout(layout_left, stretch=1)
+        layout.addWidget(channel_user_tab, stretch=1)
         layout.addLayout(layout_right, stretch=3)
 
         widget = QWidget()
@@ -80,41 +114,63 @@ class MainWindow(QMainWindow):
 
     @asyncSlot()
     async def connect_button_clicked(self):
-        addr, nickname, passwd = (
-            self.server_line_edit.text(),
+        addr, nickname, passwd, encoding = (
+            self.server_line_edit.text().split(':'),
             self.nickname_line_edit.text(),
-            self.password_line_edit.text()
+            self.password_line_edit.text(),
+            self.encoding_line_edit.text()
         )
+        host, port = addr[0], addr[1]
 
-        logger.info(f'Подключаемся к {addr} | Nickname: {nickname} Password: {passwd}')
+        logger.info(f'Подключаемся к {host}:{port} | Nickname: {nickname} Password: {passwd}')
+        self.irc_client = IrcClient(host, port, nickname, encoding, self.change_channels_list, self.change_chat_members, self.change_chat_view)
+        await self.irc_client.connect()
+        loop = asyncio.get_event_loop()
+        loop.create_task(self.irc_client.handle())
         # Вызов подключения
 
     @asyncSlot()
     async def text_enter_pressed(self):
         text = self.send_text_line_edit.text()
         logger.info(f'Отправляем текст {text}')
-        # Вызов отправки сообщения
+        self.irc_client.send_message(text)
         self.send_text_line_edit.clear()
 
     @asyncSlot()
     async def connect_channel(self):
         for index, item in enumerate(self.channel_items):
             if item.isSelected():
-                logger.info(f'Connect to channel {self.channel_data[i]}')
-                break
+                logger.info(f'Connect to channel {self.channel_data[index]}')
+                await self.irc_client.join_channel(self.channel_data[index])
 
-    def change_channels_list(self, list_channels: list[tuple[str, int]]) -> None:
+    @asyncSlot()
+    async def leave_channel(self):
+        await self.irc_client.leave_channel()
+        self.users_view.clear()
+
+    async def change_channels_list(self, list_channels) -> None:
         logger.info(f'New list channels {list_channels}')
         self.channel_view.clear()
         self.channel_data.clear()
         self.channel_items.clear()
-        for name, count in list_channels:
+        list_channels = sorted(list_channels, key=lambda x: x[1], reverse=True)
+        for name, count, topic in list_channels:
             current_tree_item = QTreeWidgetItem(self.channel_view)
             current_tree_item.setText(0, name)
             current_tree_item.setText(1, count)
+            current_tree_item.setText(2, topic)
             self.channel_items.append(current_tree_item)
-            self.channel_data.append((name, count))
+        self.channel_data = list_channels.copy()
+        for i in range(3):
+            self.channel_view.resizeColumnToContents(i)
 
-    def change_chat_view(self, text: list[str]) -> None:
-        logger.info(f'New chat text: {text}')
-        pass
+    async def change_chat_view(self, text: str) -> None:
+        self.chat_view.append(text)
+
+    async def change_chat_members(self, members) -> None:
+        members = sorted(members, key=lambda x: int(x[0]))
+        self.users_view.clear()
+        for membership, nick in members:
+            current_tree_item = QTreeWidgetItem(self.users_view)
+            current_tree_item.setText(0, nick)
+        logger.info(f'New chat members: {members}')

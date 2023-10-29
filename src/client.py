@@ -26,6 +26,7 @@ class IrcClient:
         self.writer: StreamWriter = None
 
         self.channels: list[Channel] = []
+        self.current_channel = None
         self.members: list[Member] = None
         self.commands: deque[Command] = deque()
 
@@ -76,6 +77,7 @@ class IrcClient:
         response = response.rstrip('\r\n')
         for check in self.checks:
             await check(response)
+        await self.on_receiving_message(response)
 
     async def on_ping(self, response: str):
         if 'PING' in response:
@@ -91,11 +93,8 @@ class IrcClient:
 
     # RPL_LISTEND
     async def on_323(self, response: str):
-        # TODO: Паша, сними комменты, когда напишешь свою функцию
         if response.split(' ')[1] == '323':
-            ...
-            print(self.channels)
-            # await self.on_update_channel(self.channels)
+            await self.on_update_channels(self.channels)
 
     # RPL_NAMREPLY
     async def on_353(self, response: str):
@@ -109,11 +108,8 @@ class IrcClient:
 
     # RPL_ENDOFNAMES
     async def on_366(self, response: str):
-        # TODO: Паша, сними комменты, когда напишешь свою функцию
         if response.split(' ')[1] == '366':
-            ...
-            print(self.members)
-            # await self.on_update_members(self.members)
+            await self.on_update_members(self.members)
 
     async def _send_command(self, command: Command):
         message = f'{command.command} {" ".join(command.parameters)}\r\n'
@@ -135,20 +131,25 @@ class IrcClient:
 
     async def join_channel(self, channel: Channel):
         self.commands.append(Command("JOIN", [channel.channel]))
+        self.current_channel = channel.channel
 
     async def leave_channel(self):
         self.commands.append(Command("JOIN", ["0"]))
+        self.current_channel = None
 
     async def close(self):
-        self.commands.append(Command("QUIT", ["Вы долбоебы блять"]))
+        self.commands.append(Command("QUIT", ["Bye!"]))
+
+    def send_message(self, message):
+        self.commands.append(Command("PRIVMSG", [self.current_channel, ":" + message]))
 
 
 async def main():
     client = IrcClient("irc.ircnet.ru", 6688, 'pavlo', 'utf-8',
                        None, None, None)
     await client.connect()
-    await client.join_channel(Channel('#Usue', None, None))
-    await client.update_members(Channel('#Usue', None, None))
+    # await client.join_channel(Channel('#Usue', None, None))
+    # await client.update_members(Channel('#Usue', None, None))
     # await client.leave_channel()
     # await client.close()
     await client.handle()
