@@ -139,7 +139,7 @@ class MainWindow(QMainWindow):
     async def text_enter_pressed(self):
         text = self.send_text_line_edit.text()
         logger.info(f'Отправляем текст {text}')
-        self.irc_client.send_message(text)
+        await self.irc_client.send_message(text)
         self.send_text_line_edit.clear()
 
     @asyncSlot()

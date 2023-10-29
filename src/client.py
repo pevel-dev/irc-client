@@ -36,7 +36,8 @@ class IrcClient:
 
         self.checks = [self._on_ping,
                        self._on_322, self._on_323,
-                       self._on_353, self._on_366]
+                       self._on_353, self._on_366,
+                       self._on_chat_message]
 
         self.on_receiving_message = on_receiving_message
         self.on_update_members = on_update_members
@@ -81,7 +82,13 @@ class IrcClient:
         response = response.rstrip('\r\n')
         for check in self.checks:
             await check(response)
-        await self.on_receiving_message(response)
+        # await self.on_receiving_message(response)
+
+    async def _on_chat_message(self, response: str):
+        if response.split(' ')[1] == 'PRIVMSG':
+            member = response.split(' ')[0][1:]
+            message = response.split(':')[2]
+            await self.on_receiving_message(f'<{member}> {message}')
 
     async def _on_ping(self, response: str):
         if 'PING' in response:
@@ -149,10 +156,10 @@ class IrcClient:
     def close(self):
         self.commands.append(Command("QUIT", ["Bye!"]))
 
-    def send_message(self, message):
-        self._send_text_by_blocks(message)
+    async def send_message(self, message):
+        await self._send_text_by_blocks(message)
 
-    def _send_text_by_blocks(self, text):
+    async def _send_text_by_blocks(self, text):
         words = deque(text.split(' '))
         whitespace_size = 1
         while words:
@@ -164,14 +171,11 @@ class IrcClient:
                     word = words.popleft()
                     block.append(word)
                     block_size += len(word.encode()) + whitespace_size
-                self.commands.append(Command("PRIVMSG",
-                                             [self.current_channel,
-                                              ":" + ' '.join(block)])
-                                     )
+                await self._send_single_message(' '.join(block))
             else:
-                self._send_word_by_blocks(words.popleft())
+                await self._send_word_by_blocks(words.popleft())
 
-    def _send_word_by_blocks(self, word):
+    async def _send_word_by_blocks(self, word):
         chars = deque(word)
         while chars:
             block = []
@@ -181,10 +185,14 @@ class IrcClient:
                 char = chars.popleft()
                 block.append(char)
                 block_size += len(char.encode())
-            self.commands.append(Command("PRIVMSG",
-                                         [self.current_channel,
-                                          ":" + ''.join(block)])
-                                 )
+            await self._send_single_message(''.join(block))
+
+    async def _send_single_message(self, message):
+        await self.on_receiving_message(f'<{self.nickname} (YOU)> {message}')
+        self.commands.append(Command("PRIVMSG",
+                                     [self.current_channel,
+                                      ":" + message])
+                             )
 
 
 async def main():
