@@ -7,9 +7,14 @@ from collections import namedtuple, deque
 
 Channel = namedtuple('Channel', ['channel', 'client_count', 'topic'])
 Command = namedtuple('Command', ['command', 'parameters'])
-Member = namedtuple('Member', ['membership', 'nick'])
+Member = namedtuple('Member', ['membership', 'nick', 'prefix'])
 
 MAX_MESSAGE_SIZE = 384
+
+
+def parse_user(response: str) -> Tuple[str, str]:
+    nick, full_name = response.lstrip(':').split(' ')[0].split('!')
+    return nick, full_name
 
 
 class IrcClient:
@@ -37,7 +42,9 @@ class IrcClient:
         self.checks = [self._on_ping,
                        self._on_322, self._on_323,
                        self._on_353, self._on_366,
-                       self._on_chat_message]
+                       self._on_chat_message,
+                       self._on_members_list_change,
+                       ]
 
         self.on_receiving_message = on_receiving_message
         self.on_update_members = on_update_members
@@ -78,17 +85,35 @@ class IrcClient:
             await asyncio.sleep(0.01)
 
     async def _process_response(self, response: str):
-        logger.info(f'Getting response: {response}')
+        logger.info(f'Getting response {response}')
         response = response.rstrip('\r\n')
         for check in self.checks:
             await check(response)
-        # await self.on_receiving_message(response)
 
     async def _on_chat_message(self, response: str):
         if response.split(' ')[1] == 'PRIVMSG':
-            member = response.split(' ')[0][1:]
+            nick, fullname = parse_user(response)
             message = response.split(':')[2]
-            await self.on_receiving_message(f'<{member}> {message}')
+            await self.on_receiving_message(f'<{nick} ({fullname})> {message}')
+
+    async def _on_members_list_change(self, response: str):
+        if response.split(' ')[1] not in ('PART', 'JOIN'):
+            return
+        nick, full_name = parse_user(response)
+        if response.split(' ')[1] == 'PART':
+            channels = response.rstrip().split(' ')[2].split(',')
+            message = f'{nick} ({full_name}) has left {self.current_channel}'
+            if self.current_channel in channels:
+                self.members = [member for member in self.members if
+                                member.nick != nick]
+        if response.split(' ')[1] == 'JOIN':
+            channels = response.rstrip().split(' ')[2].lstrip(':').split(',')
+            message = f'{nick} ({full_name}) has joined {self.current_channel}'
+            if self.current_channel in channels:
+                membership, nick, prefix = ChannelMembership.parse_name(nick)
+                self.members.append(Member(membership, nick, prefix))
+        await self.on_update_members(sorted(self.members))
+        await self.on_receiving_message(message)
 
     async def _on_ping(self, response: str):
         if 'PING' in response:
@@ -118,8 +143,8 @@ class IrcClient:
             names = response.rstrip().split(' ')[5:]
             names[0] = names[0].lstrip(':')
             for name in names:
-                membership, nick = ChannelMembership.parse_name(name)
-                self.members.append(Member(membership, nick))
+                membership, nick, prefix = ChannelMembership.parse_name(name)
+                self.members.append(Member(membership, nick, prefix))
 
     # RPL_ENDOFNAMES
     async def _on_366(self, response: str):

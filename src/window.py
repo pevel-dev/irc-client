@@ -178,7 +178,7 @@ class MainWindow(QMainWindow):
 
     async def change_chat_members(self, members) -> None:
         self.users_view.clear()
-        for membership, nick in members:
+        for membership, nick, prefix in members:
             current_tree_item = QTreeWidgetItem(self.users_view)
-            current_tree_item.setText(0, nick)
+            current_tree_item.setText(0, prefix + nick)
         logger.info(f'New chat members: {members}')
