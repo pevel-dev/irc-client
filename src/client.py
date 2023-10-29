@@ -39,7 +39,7 @@ class IrcClient:
         self.writer: StreamWriter = None
 
         self.channels: list[Channel] = []
-        self.current_channel = None
+        self.last_channel: str = None
         self.members: list[Member] = []
         self.commands: deque[Command] = deque()
 
@@ -107,13 +107,13 @@ class IrcClient:
         nick, full_name = parse_user(response)
         if response.split(' ')[1] == 'PART':
             channels = response.rstrip().split(' ')[2].split(',')
-            message = f'{nick} ({full_name}) has left {self.current_channel}'
-            if self.current_channel in channels:
+            message = f'{nick} ({full_name}) has left {",".join(channels)}'
+            if self.last_channel in channels:
                 self.members = [member for member in self.members if member.nick != nick]
         if response.split(' ')[1] == 'JOIN':
             channels = response.rstrip().split(' ')[2].lstrip(':').split(',')
-            message = f'{nick} ({full_name}) has joined {self.current_channel}'
-            if self.current_channel in channels:
+            message = f'{nick} ({full_name}) has joined {",".join(channels)}'
+            if self.last_channel in channels:
                 membership, nick, prefix = ChannelMembership.parse_name(nick)
                 self.members.append(Member(membership, nick, prefix))
         await self.on_update_members(sorted(self.members))
@@ -165,15 +165,14 @@ class IrcClient:
         self.commands.append(Command("LIST", []))
 
     def update_members(self):
-        self.commands.append(Command("NAMES", [self.current_channel]))
+        self.commands.append(Command("NAMES", [self.last_channel]))
 
     def join_channel(self, channel: Channel):
         self.commands.append(Command("JOIN", [channel.channel]))
-        self.current_channel = channel.channel
+        self.last_channel = channel.channel
 
     def leave_channel(self):
         self.commands.append(Command("JOIN", ["0"]))
-        self.current_channel = None
 
     def close(self):
         self.commands.append(Command("QUIT", ["Bye!"]))
@@ -209,4 +208,4 @@ class IrcClient:
 
     async def _send_single_message(self, message):
         await self.on_receiving_message(f'<{self.nickname} (YOU)> {message}')
-        self.commands.append(Command("PRIVMSG", [self.current_channel, ":" + message]))
+        self.commands.append(Command("PRIVMSG", [self.last_channel, ":" + message]))
