@@ -91,7 +91,7 @@ class IrcClient:
             await asyncio.sleep(0.01)
 
     async def _process_response(self, response: str):
-        logger.info(f'Getting response {response}')
+        print(f'Getting response {response}')
         response = response.rstrip('\r\n')
         for check in self.checks:
             await check(response)
