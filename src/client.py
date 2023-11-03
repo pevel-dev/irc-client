@@ -5,7 +5,7 @@ from typing import Callable
 
 from loguru import logger
 
-from membership import ChannelMembership
+from src.membership import ChannelMembership
 
 Channel = namedtuple('Channel', ['channel', 'client_count', 'topic'])
 Command = namedtuple('Command', ['command', 'parameters'])
@@ -51,6 +51,7 @@ class IrcClient:
             self._on_366,
             self._on_chat_message,
             self._on_members_list_change,
+            self._info_from_server
         ]
 
         self.on_receiving_message = on_receiving_message
@@ -90,7 +91,7 @@ class IrcClient:
             await asyncio.sleep(0.01)
 
     async def _process_response(self, response: str):
-        logger.info(f'Getting response {response}')
+        print(f'Getting response {response}')
         response = response.rstrip('\r\n')
         for check in self.checks:
             await check(response)
@@ -150,9 +151,14 @@ class IrcClient:
         if response.split(' ')[1] == '366':
             await self.on_update_members(sorted(self.members))
 
+    # Server_info
+    async def _info_from_server(self, response: str):
+        splited = response.split(' ')
+        if splited[1] in ('372', '371', '375', '250', '265', '255', '254', '252', '251', 'NOTICE', '001', '002', '003'):
+            await self.on_receiving_message(f'<{splited[0]}> {" ".join(response.split(":")[2:])}')
+
     async def _send_command(self, command: Command):
         message = f'{command.command} {" ".join(command.parameters)}\r\n'
-        logger.info(f'Sending {message}')
         self.writer.write(message.encode(self.encoding))
         await self.writer.drain()
 
