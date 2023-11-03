@@ -1,5 +1,8 @@
 import asyncio
 from datetime import datetime
+
+from PyQt6 import QtCore
+from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (
     QFormLayout,
     QHBoxLayout,
@@ -12,7 +15,7 @@ from PyQt6.QtWidgets import (
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
-    QWidget,
+    QWidget, QMenu,
 )
 from qasync import asyncSlot
 
@@ -94,6 +97,10 @@ class MainWindow(QMainWindow):
         layout_left_channels.addWidget(self.save_log_button)
 
         self.users_view = QTreeWidget()
+
+        self.users_view.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+        self.users_view.customContextMenuRequested.connect(self.open_menu)
+
         self.users_view.headerItem().setText(0, "Ник")
         layout_left_users.addWidget(self.users_view)
 
@@ -180,6 +187,14 @@ class MainWindow(QMainWindow):
         with open(path, 'w', encoding=self.irc_client.encoding) as log_file:
             log_file.write(self.chat_view.toPlainText())
 
+    @asyncSlot()
+    async def kick(self):
+        print('kick')
+
+    @asyncSlot()
+    async def ban(self):
+        print('ban')
+
     async def change_channels_list(self, list_channels) -> None:
         self.channel_view.clear()
         self.channel_data.clear()
@@ -202,3 +217,14 @@ class MainWindow(QMainWindow):
         for membership, nick, prefix in members:
             current_tree_item = QTreeWidgetItem(self.users_view)
             current_tree_item.setText(0, prefix + nick)
+
+    def open_menu(self, position):
+        menu = QMenu()
+        addDes = QAction('Kick', menu)
+        addDes.triggered.connect(self.kick)
+        addDes_2 = QAction('Ban', menu)
+        addDes_2.triggered.connect(self.ban)
+
+        menu.addAction(addDes)
+        menu.addAction(addDes_2)
+        menu.exec(self.users_view.viewport().mapToGlobal(position))
