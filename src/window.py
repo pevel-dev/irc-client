@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
-    QWidget,
+    QWidget, QFileDialog,
 )
 from qasync import asyncSlot
 
@@ -23,6 +23,8 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        self.path_dialog = None
+        self.save_log_button = None
         self.encoding_line_edit = None
         self.irc_client: IrcClient = None
         self.channel_data = []
@@ -33,7 +35,6 @@ class MainWindow(QMainWindow):
         self.users_view = None
         self.leave_channel_button = None
         self.connect_channel_button = None
-        self.password_line_edit = None
         self.send_text_line_edit = None
         self.chat_view: QTextEdit = None
         self.channel_view: QTreeWidget = None
@@ -61,10 +62,6 @@ class MainWindow(QMainWindow):
         self.nickname_line_edit = QLineEdit('pevel')
         layout.addWidget(self.nickname_line_edit)
 
-        layout.addWidget(QLabel('Password:'))
-        self.password_line_edit = QLineEdit()
-        layout.addWidget(self.password_line_edit)
-
         self.button_connect = QPushButton('Подключиться!')
         layout.addWidget(self.button_connect)
         self.button_connect.clicked.connect(self.connect_button_clicked)
@@ -91,6 +88,10 @@ class MainWindow(QMainWindow):
         self.leave_channel_button.clicked.connect(self.leave_channel)
         self.leave_channel_button.setDisabled(True)
         layout_left_channels.addWidget(self.leave_channel_button)
+
+        self.save_log_button = QPushButton('Сохранить лог')
+        self.save_log_button.clicked.connect(self.save_log)
+        layout_left_channels.addWidget(self.save_log_button)
 
         self.users_view = QTreeWidget()
         self.users_view.headerItem().setText(0, "Ник")
@@ -158,6 +159,20 @@ class MainWindow(QMainWindow):
         self.irc_client.leave_channel()
         self.leave_channel_button.setDisabled(True)
         self.users_view.clear()
+
+    @asyncSlot()
+    async def save_log(self):
+        self.path_dialog = str(QFileDialog.getSaveFileName(self, "Save log", "", ".log"))
+        print(self.path_dialog)
+    #     self.path_dialog.AcceptMode(1)
+    #
+    #     self.path_dialog.accepted.connect(self.save_log_file_selected)
+    #     self.path_dialog.show()
+    #
+    #
+    # @asyncSlot()
+    # async def save_log_file_selected(self):
+    #     print(self.path_dialog.selectedFiles)
 
     async def change_channels_list(self, list_channels) -> None:
         self.channel_view.clear()
