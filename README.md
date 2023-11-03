@@ -14,7 +14,7 @@
 ### Usage
 ```shell
 pip install -r requirements.txt
-python src/irc.py
+python src/main.py
 ```
 
 ### Test
