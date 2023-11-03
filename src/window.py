@@ -34,7 +34,8 @@ class MainWindow(QMainWindow):
         self.leave_channel_button = None
         self.connect_channel_button = None
         self.password_line_edit = None
-        self.send_text_line_edit = None
+        self.send_message_line_edit = None
+        self.send_command_line_edit = None
         self.chat_view: QTextEdit = None
         self.channel_view: QTreeWidget = None
         self.server_line_edit = None
@@ -107,13 +108,20 @@ class MainWindow(QMainWindow):
         layout_left_users_widget.setLayout(layout_left_users)
         channel_user_tab.addTab(layout_left_users_widget, 'Пользователи')
 
+        self.send_command_line_edit = QLineEdit()
+        self.send_command_line_edit.setPlaceholderText('Command line')
+        layout_right.addWidget(self.send_command_line_edit)
+        self.send_command_line_edit.returnPressed.connect(self.command_enter_pressed)
+
         self.chat_view = QTextEdit()
         self.chat_view.setReadOnly(True)
         self.chat_view.setText('...')
         layout_right.addWidget(self.chat_view)
-        self.send_text_line_edit = QLineEdit()
-        layout_right.addWidget(self.send_text_line_edit)
-        self.send_text_line_edit.returnPressed.connect(self.text_enter_pressed)
+
+        self.send_message_line_edit = QLineEdit()
+        self.send_message_line_edit.setPlaceholderText('Message')
+        layout_right.addWidget(self.send_message_line_edit)
+        self.send_message_line_edit.returnPressed.connect(self.message_enter_pressed)
 
         layout.addWidget(channel_user_tab, stretch=1)
         layout.addLayout(layout_right, stretch=3)
@@ -121,6 +129,12 @@ class MainWindow(QMainWindow):
         widget = QWidget()
         widget.setLayout(layout)
         tabs.addTab(widget, "Irc")
+
+    @asyncSlot()
+    async def command_enter_pressed(self):
+        command = self.send_message_line_edit.text()
+        await self.irc_client.execute_command(command)
+        self.send_message_line_edit.clear()
 
     @asyncSlot()
     async def connect_button_clicked(self):
@@ -139,10 +153,10 @@ class MainWindow(QMainWindow):
         loop.create_task(self.irc_client.handle())
 
     @asyncSlot()
-    async def text_enter_pressed(self):
-        text = self.send_text_line_edit.text()
-        await self.irc_client.send_message(text)
-        self.send_text_line_edit.clear()
+    async def message_enter_pressed(self):
+        message = self.send_message_line_edit.text()
+        await self.irc_client.send_message(message)
+        self.send_message_line_edit.clear()
 
     @asyncSlot()
     async def connect_channel(self):
