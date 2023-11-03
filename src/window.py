@@ -1,5 +1,5 @@
 import asyncio
-
+from datetime import datetime
 from PyQt6.QtWidgets import (
     QFormLayout,
     QHBoxLayout,
@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
-    QWidget,
+    QWidget, QFileDialog,
 )
 from qasync import asyncSlot
 
@@ -23,6 +23,8 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        self.path_dialog = None
+        self.save_log_button = None
         self.encoding_line_edit = None
         self.irc_client: IrcClient = None
         self.channel_data = []
@@ -33,7 +35,6 @@ class MainWindow(QMainWindow):
         self.users_view = None
         self.leave_channel_button = None
         self.connect_channel_button = None
-        self.password_line_edit = None
         self.send_text_line_edit = None
         self.chat_view: QTextEdit = None
         self.channel_view: QTreeWidget = None
@@ -60,10 +61,6 @@ class MainWindow(QMainWindow):
         layout.addWidget(QLabel('Nickname:'))
         self.nickname_line_edit = QLineEdit('pevel')
         layout.addWidget(self.nickname_line_edit)
-
-        layout.addWidget(QLabel('Password:'))
-        self.password_line_edit = QLineEdit()
-        layout.addWidget(self.password_line_edit)
 
         self.button_connect = QPushButton('Подключиться!')
         layout.addWidget(self.button_connect)
@@ -92,6 +89,10 @@ class MainWindow(QMainWindow):
         self.leave_channel_button.setDisabled(True)
         layout_left_channels.addWidget(self.leave_channel_button)
 
+        self.save_log_button = QPushButton('Сохранить лог')
+        self.save_log_button.clicked.connect(self.save_log)
+        layout_left_channels.addWidget(self.save_log_button)
+
         self.users_view = QTreeWidget()
         self.users_view.headerItem().setText(0, "Ник")
         layout_left_users.addWidget(self.users_view)
@@ -109,7 +110,6 @@ class MainWindow(QMainWindow):
 
         self.chat_view = QTextEdit()
         self.chat_view.setReadOnly(True)
-        self.chat_view.setText('...')
         layout_right.addWidget(self.chat_view)
         self.send_text_line_edit = QLineEdit()
         layout_right.addWidget(self.send_text_line_edit)
@@ -158,6 +158,12 @@ class MainWindow(QMainWindow):
         self.irc_client.leave_channel()
         self.leave_channel_button.setDisabled(True)
         self.users_view.clear()
+
+    @asyncSlot()
+    async def save_log(self):
+        path = f'{datetime.now().strftime("%d-%m-%Y-%H-%M-%S")}.txt'
+        with open(path, 'w', encoding=self.irc_client.encoding) as log_file:
+            log_file.write(self.chat_view.toPlainText())
 
     async def change_channels_list(self, list_channels) -> None:
         self.channel_view.clear()

@@ -3,8 +3,6 @@ from asyncio import StreamReader, StreamWriter
 from collections import deque, namedtuple
 from typing import Callable
 
-from loguru import logger
-
 from src.membership import ChannelMembership
 
 Channel = namedtuple('Channel', ['channel', 'client_count', 'topic'])
