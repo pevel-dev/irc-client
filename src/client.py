@@ -157,7 +157,7 @@ class IrcClient:
 
     async def _send_command(self, command: Command):
         message = f'{command.command} {" ".join(command.parameters)}\r\n'
-        print(message)
+        print(f'Sending command: {message}')
         self.writer.write(message.encode(self.encoding))
         await self.writer.drain()
 
