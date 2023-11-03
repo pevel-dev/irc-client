@@ -101,9 +101,15 @@ class IrcClient:
             await self.on_receiving_message(f'<{nick} ({fullname})> {message}')
 
     async def _on_members_list_change(self, response: str):
-        if response.split(' ')[1] not in ('PART', 'JOIN'):
+        if response.split(' ')[1] not in ('PART', 'JOIN', 'KICK'):
             return
         nick, full_name = parse_user(response)
+        if response.split(' ')[1] == 'KICK':
+            kicked = response.split(' ')[3]
+            channel = response.split(' ')[2]
+            message = f'{nick} ({full_name}) kicked {kicked} from {channel}'
+            if self.last_channel == channel:
+                self.members = [member for member in self.members if member.nick != kicked]
         if response.split(' ')[1] == 'PART':
             channels = response.rstrip().split(' ')[2].split(',')
             message = f'{nick} ({full_name}) has left {",".join(channels)}'
@@ -112,6 +118,8 @@ class IrcClient:
         if response.split(' ')[1] == 'JOIN':
             channels = response.rstrip().split(' ')[2].lstrip(':').split(',')
             message = f'{nick} ({full_name}) has joined {",".join(channels)}'
+            if nick == self.nickname:
+                self.last_channel = channels[0]
             if self.last_channel in channels:
                 membership, nick, prefix = ChannelMembership.parse_name(nick)
                 self.members.append(Member(membership, nick, prefix))
