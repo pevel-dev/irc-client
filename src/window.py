@@ -1,5 +1,5 @@
 import asyncio
-
+from datetime import datetime
 from PyQt6.QtWidgets import (
     QFormLayout,
     QHBoxLayout,
@@ -110,7 +110,6 @@ class MainWindow(QMainWindow):
 
         self.chat_view = QTextEdit()
         self.chat_view.setReadOnly(True)
-        self.chat_view.setText('...')
         layout_right.addWidget(self.chat_view)
         self.send_text_line_edit = QLineEdit()
         layout_right.addWidget(self.send_text_line_edit)
@@ -162,17 +161,9 @@ class MainWindow(QMainWindow):
 
     @asyncSlot()
     async def save_log(self):
-        self.path_dialog = str(QFileDialog.getSaveFileName(self, "Save log", "", ".log"))
-        print(self.path_dialog)
-    #     self.path_dialog.AcceptMode(1)
-    #
-    #     self.path_dialog.accepted.connect(self.save_log_file_selected)
-    #     self.path_dialog.show()
-    #
-    #
-    # @asyncSlot()
-    # async def save_log_file_selected(self):
-    #     print(self.path_dialog.selectedFiles)
+        path = f'{datetime.now().strftime("%d-%m-%Y-%H-%M-%S")}.txt'
+        with open(path, 'w', encoding=self.irc_client.encoding) as log_file:
+            log_file.write(self.chat_view.toPlainText())
 
     async def change_channels_list(self, list_channels) -> None:
         self.channel_view.clear()
