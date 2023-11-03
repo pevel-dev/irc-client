@@ -132,9 +132,10 @@ class MainWindow(QMainWindow):
 
     @asyncSlot()
     async def command_enter_pressed(self):
-        command = self.send_message_line_edit.text()
-        await self.irc_client.execute_command(command)
-        self.send_message_line_edit.clear()
+        command = self.send_command_line_edit.text()
+        if command:
+            await self.irc_client.execute_command(command)
+            self.send_command_line_edit.clear()
 
     @asyncSlot()
     async def connect_button_clicked(self):
@@ -155,8 +156,9 @@ class MainWindow(QMainWindow):
     @asyncSlot()
     async def message_enter_pressed(self):
         message = self.send_message_line_edit.text()
-        await self.irc_client.send_message(message)
-        self.send_message_line_edit.clear()
+        if message:
+            await self.irc_client.send_message(message)
+            self.send_message_line_edit.clear()
 
     @asyncSlot()
     async def connect_channel(self):
