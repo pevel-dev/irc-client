@@ -190,7 +190,7 @@ class MainWindow(QMainWindow):
             log_file.write(self.chat_view.toPlainText())
 
     @asyncSlot()
-    async def kick(self):
+    async def ban(self):
         user = None
         for index, item in enumerate(self.users_items):
             if item.isSelected():
@@ -199,7 +199,7 @@ class MainWindow(QMainWindow):
             await self.irc_client.execute_command(f"MODE {self.irc_client.last_channel} +b {user}")
 
     @asyncSlot()
-    async def ban(self):
+    async def kick(self):
         user = None
         for index, item in enumerate(self.users_items):
             if item.isSelected():
