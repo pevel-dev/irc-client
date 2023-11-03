@@ -26,6 +26,8 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        self.users_items = None
+        self.users = None
         self.save_log_button = None
         self.encoding_line_edit = None
         self.irc_client: IrcClient = None
@@ -189,11 +191,21 @@ class MainWindow(QMainWindow):
 
     @asyncSlot()
     async def kick(self):
-        print('kick')
+        user = None
+        for index, item in enumerate(self.users_items):
+            if item.isSelected():
+                user = self.users[index]
+        if user:
+            await self.irc_client.execute_command(f"MODE {self.irc_client.last_channel} +b {user}")
 
     @asyncSlot()
     async def ban(self):
-        print('ban')
+        user = None
+        for index, item in enumerate(self.users_items):
+            if item.isSelected():
+                user = self.users[index]
+        if user:
+            await self.irc_client.execute_command(f"KICK {self.irc_client.last_channel} {user}")
 
     async def change_channels_list(self, list_channels) -> None:
         self.channel_view.clear()
@@ -214,9 +226,13 @@ class MainWindow(QMainWindow):
 
     async def change_chat_members(self, members) -> None:
         self.users_view.clear()
+        self.users = []
+        self.users_items = []
         for membership, nick, prefix in members:
             current_tree_item = QTreeWidgetItem(self.users_view)
             current_tree_item.setText(0, prefix + nick)
+            self.users_items.append(current_tree_item)
+            self.users.append(nick)
 
     def open_menu(self, position):
         menu = QMenu()
