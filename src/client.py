@@ -157,6 +157,7 @@ class IrcClient:
 
     async def _send_command(self, command: Command):
         message = f'{command.command} {" ".join(command.parameters)}\r\n'
+        print(message)
         self.writer.write(message.encode(self.encoding))
         await self.writer.drain()
 
@@ -178,8 +179,19 @@ class IrcClient:
     def leave_channel(self):
         self.commands.append(Command("JOIN", ["0"]))
 
+    def kick(self, member: Member, comment: str):
+        self.commands.append(Command("KICK", [self.last_channel, member.nick, ':' + comment]))
+
+    def ban(self, member: Member):
+        self.commands.append(Command("MODE", [self.last_channel, '+b', member.nick]))
+
     def close(self):
         self.commands.append(Command("QUIT", ["Bye!"]))
+
+    async def execute_command(self, command: str):
+        command = command.strip()
+        command = Command(command.split(' ')[0], command.split(' ')[1:])
+        self.commands.append(command)
 
     async def send_message(self, message):
         await self._send_text_by_blocks(message)
