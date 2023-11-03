@@ -170,7 +170,6 @@ class IrcClient:
         await self.writer.drain()
 
     def _authorize(self):
-        # TODO: send_password()
         self.commands.append(Command("NICK", [self.nickname]))
         self.commands.append(Command("USER", [self.nickname, "8", "*", ":Pavel Egorov"]))
 
